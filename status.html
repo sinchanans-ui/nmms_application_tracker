@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Check Your NMMS Application Status</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      background: #f0f4f8;
+      display: flex;
+      justify-content: center;
+      padding: 40px 20px;
+      min-height: 100vh;
+      color: #1e293b;
+    }
+    .card {
+      background: #fff;
+      border-radius: 16px;
+      padding: 32px;
+      max-width: 480px;
+      width: 100%;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+      height: fit-content;
+    }
+    h2 { margin-bottom: 8px; color: #1e293b; font-size: 1.4rem; }
+    p.sub {
+      color: #64748b;
+      font-size: 0.9rem;
+      margin-bottom: 24px;
+      line-height: 1.5;
+    }
+    input {
+      width: 100%;
+      padding: 12px 16px;
+      border: 1px solid #cbd5e1;
+      border-radius: 8px;
+      font-size: 1rem;
+      margin-bottom: 12px;
+      outline: none;
+    }
+    input:focus { border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59,130,246,0.1); }
+    button {
+      width: 100%;
+      padding: 12px;
+      background: #3b82f6;
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    button:hover { background: #2563eb; }
+    .result {
+      margin-top: 20px;
+      padding: 16px;
+      border-radius: 8px;
+      display: none;
+      font-weight: 500;
+      line-height: 1.5;
+      font-size: 0.95rem;
+    }
+    .result.found-applied { background: #dcfce7; color: #166534; }
+    .result.found-not { background: #fef3c7; color: #92400e; }
+    .result.not-found { background: #f1f5f9; color: #64748b; }
+    .download-btn {
+      display: inline-block;
+      margin-top: 12px;
+      padding: 10px 20px;
+      background: #166534;
+      color: #fff !important;
+      text-decoration: none;
+      border-radius: 8px;
+      font-weight: 600;
+      font-size: 0.9rem;
+    }
+    .download-btn:hover { background: #14532d; }
+    .no-pdf {
+      margin-top: 12px;
+      font-size: 0.85rem;
+      color: #475569;
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h2>NMMS Application Status</h2>
+    <p class="sub">
+      Enter your name or SATS Id to check if your NMMS application
+      has been submitted by the school on the KSEAB portal.
+    </p>
+
+    <input type="text" id="searchInput" placeholder="Your name or SATS Id" />
+    <button id="checkBtn">Check Status</button>
+
+    <div class="result" id="result"></div>
+  </div>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+    import { getFirestore, collection, getDocs }
+      from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+    // ---- Paste your Firebase config here ----
+    const firebaseConfig = {
+      apiKey: "AIzaSyDkErVg2QwUprcayd-0L6Lf93hdUfFdabk",
+      authDomain: "nmms-application-tracker.firebaseapp.com",
+      projectId: "nmms-application-tracker",
+      storageBucket: "nmms-application-tracker.firebasestorage.app",
+      messagingSenderId: "881428800217",
+      appId: "1:881428800217:web:6e0f9e36715861f51e94c8"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+
+    let allStudents = [];
+
+    // ---- Load students once on page load ----
+    async function loadStudents() {
+      try {
+        const snapshot = await getDocs(collection(db, "nmms_students"));
+        allStudents = [];
+        snapshot.forEach(doc => {
+          allStudents.push({ id: doc.id, ...doc.data() });
+        });
+      } catch (err) {
+        console.error("Failed to load students:", err);
+      }
+    }
+
+    // ---- Search logic ----
+    async function checkStatus() {
+      const query = document.getElementById('searchInput').value.trim().toLowerCase();
+      const result = document.getElementById('result');
+
+      if (!query) {
+        result.className = 'result not-found';
+        result.textContent = 'Please enter your name or SATS Id.';
+        result.style.display = 'block';
+        return;
+      }
+
+      // Refresh data if not loaded yet
+      if (allStudents.length === 0) {
+        await loadStudents();
+      }
+
+      const match = allStudents.find(s =>
+        s.name && s.name.toLowerCase().includes(query)
+      );
+
+      result.style.display = 'block';
+
+      if (!match) {
+        result.className = 'result not-found';
+        result.textContent = 'Name not found. Please check with your school.';
+        return;
+      }
+
+      if (match.applied) {
+        result.className = 'result found-applied';
+
+        let downloadHtml = '';
+        if (match.appLink) {
+          downloadHtml = `
+            <div>
+              <a href="${match.appLink}" target="_blank" rel="noopener"
+                 class="download-btn">
+                📄 Download Your Application
+              </a>
+            </div>
+          `;
+        } else {
+          downloadHtml = `
+            <div class="no-pdf">
+              Application PDF is not yet available. Please check back later.
+            </div>
+          `;
+        }
+
+        result.innerHTML = `
+          ✅ <strong>${match.name}</strong> — Your application has been
+          submitted on KSEAB.${downloadHtml}
+        `;
+      } else {
+        result.className = 'result found-not';
+        result.innerHTML = `
+          ⏳ <strong>${match.name}</strong> — Your application is
+          <strong>NOT yet marked as submitted</strong>. Please contact your school.
+        `;
+      }
+    }
+
+    // ---- Wire up the button and Enter key ----
+    document.getElementById('checkBtn').addEventListener('click', checkStatus);
+    document.getElementById('searchInput').addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') checkStatus();
+    });
+
+    // ---- Initial load ----
+    loadStudents();
+  </script>
+</body>
+</html>

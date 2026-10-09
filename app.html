@@ -1,0 +1,453 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NMMS Application Tracker – KSEAB</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Segoe UI', Roboto, sans-serif;
+      background: #f0f4f8;
+      padding: 20px;
+      color: #1e293b;
+    }
+    .app { max-width: 900px; margin: 0 auto; }
+    h1 { font-size: 1.6rem; font-weight: 600; margin-bottom: 4px; }
+    .subhead { font-size: 0.9rem; color: #475569; margin-bottom: 20px; }
+
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      gap: 12px;
+      margin-bottom: 24px;
+    }
+    .stat-card {
+      background: #fff;
+      border-radius: 12px;
+      padding: 16px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+      border-left: 4px solid #94a3b8;
+    }
+    .stat-card.total { border-left-color: #3b82f6; }
+    .stat-card.applied { border-left-color: #22c55e; }
+    .stat-card.pending { border-left-color: #f59e0b; }
+    .stat-card .label {
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: #64748b;
+      margin-bottom: 4px;
+    }
+    .stat-card .value { font-size: 1.8rem; font-weight: 700; }
+    .stat-card.total .value { color: #3b82f6; }
+    .stat-card.applied .value { color: #22c55e; }
+    .stat-card.pending .value { color: #f59e0b; }
+
+    .deadline-banner {
+      background: #1e293b;
+      color: #fff;
+      border-radius: 12px;
+      padding: 16px 20px;
+      margin-bottom: 24px;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+    .deadline-label { font-size: 0.85rem; opacity: 0.8; }
+    .deadline-date { font-weight: 600; font-size: 1rem; }
+    .countdown { font-size: 1.4rem; font-weight: 700; color: #facc15; }
+
+    .toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-bottom: 16px;
+      align-items: center;
+    }
+    .toolbar input {
+      flex: 1;
+      min-width: 180px;
+      padding: 10px 14px;
+      border: 1px solid #cbd5e1;
+      border-radius: 8px;
+      font-size: 0.9rem;
+      outline: none;
+    }
+    .toolbar input:focus {
+      border-color: #3b82f6;
+      box-shadow: 0 0 0 3px rgba(59,130,246,0.1);
+    }
+    .toolbar button {
+      padding: 10px 18px;
+      border: none;
+      border-radius: 8px;
+      font-size: 0.9rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    .btn-add { background: #3b82f6; color: #fff; }
+    .btn-add:hover { background: #2563eb; }
+    .btn-reset { background: #e2e8f0; color: #475569; }
+    .btn-reset:hover { background: #cbd5e1; }
+
+    .table-wrap {
+      background: #fff;
+      border-radius: 12px;
+      overflow-x: auto;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+    }
+    table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+    thead { background: #f1f5f9; }
+    th {
+      text-align: left;
+      padding: 12px 16px;
+      font-weight: 600;
+      color: #475569;
+      font-size: 0.8rem;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+    }
+    td {
+      padding: 12px 16px;
+      border-top: 1px solid #e2e8f0;
+      vertical-align: middle;
+    }
+    tr:hover td { background: #f8fafc; }
+
+    .status-badge {
+      display: inline-block;
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      cursor: pointer;
+      user-select: none;
+      transition: transform 0.1s;
+    }
+    .status-badge:active { transform: scale(0.96); }
+    .status-badge.applied { background: #dcfce7; color: #166534; }
+    .status-badge.not-applied { background: #fef3c7; color: #92400e; }
+
+    .btn-delete {
+      background: none;
+      border: none;
+      color: #94a3b8;
+      cursor: pointer;
+      font-size: 1.1rem;
+      padding: 4px 8px;
+      border-radius: 6px;
+      transition: color 0.15s, background 0.15s;
+    }
+    .btn-delete:hover { color: #ef4444; background: #fef2f2; }
+
+    .empty-state {
+      text-align: center;
+      padding: 48px 16px;
+      color: #94a3b8;
+      font-size: 0.95rem;
+    }
+
+    @media (max-width: 600px) {
+      th, td { padding: 10px 10px; font-size: 0.82rem; }
+      .stats { grid-template-columns: 1fr 1fr; }
+      h1 { font-size: 1.3rem; }
+    }
+  </style>
+</head>
+<body>
+<div class="app">
+  <h1>NMMS Application Tracker</h1>
+  <p class="subhead">Karnataka – KSEAB School Login · Class 8 students</p>
+
+  <!-- Stats -->
+  <div class="stats">
+    <div class="stat-card total">
+      <div class="label">Total Students</div>
+      <div class="value" id="statTotal">0</div>
+    </div>
+    <div class="stat-card applied">
+      <div class="label">Applied on KSEAB</div>
+      <div class="value" id="statApplied">0</div>
+    </div>
+    <div class="stat-card pending">
+      <div class="label">Not Applied</div>
+      <div class="value" id="statPending">0</div>
+    </div>
+  </div>
+
+  <!-- Deadline -->
+  <div class="deadline-banner">
+    <div>
+      <div class="deadline-label">KSEAB NMMS Application Last Date</div>
+      <div class="deadline-date" id="deadlineDate">Loading…</div>
+    </div>
+    <div class="countdown" id="countdown">—</div>
+  </div>
+
+  <!-- Toolbar -->
+  <div class="toolbar">
+    <input type="text" id="studentName" placeholder="Enter student name or SATS Id…" />
+    <button class="btn-add" id="addBtn">Add Student</button>
+    <button class="btn-reset" id="resetBtn">Clear All</button>
+  </div>
+
+  <!-- Table -->
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th style="width:30%">Student</th>
+          <th style="width:15%">KSEAB Status</th>
+          <th style="width:40%">Application PDF Link</th>
+          <th style="width:15%; text-align:center;">Action</th>
+        </tr>
+      </thead>
+      <tbody id="studentBody"></tbody>
+    </table>
+    <div class="empty-state" id="emptyState">
+      No students added yet. Type a name or SATS Id above and click <strong>Add Student</strong>.
+    </div>
+  </div>
+</div>
+
+<script type="module">
+  // ================= Firebase Setup =================
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+  import {
+    getFirestore, collection, addDoc, onSnapshot,
+    doc, updateDoc, deleteDoc, writeBatch, getDocs
+  } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyDkErVg2QwUprcayd-0L6Lf93hdUfFdabk",
+    authDomain: "nmms-application-tracker.firebaseapp.com",
+    projectId: "nmms-application-tracker",
+    storageBucket: "nmms-application-tracker.firebasestorage.app",
+    messagingSenderId: "881428800217",
+    appId: "1:881428800217:web:6e0f9e36715861f51e94c8"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const db = getFirestore(app);
+  const studentsRef = collection(db, "nmms_students");
+
+  // ================= State =================
+  let students = [];
+
+  // ================= DOM Refs =================
+  const studentNameInput = document.getElementById('studentName');
+  const addBtn = document.getElementById('addBtn');
+  const resetBtn = document.getElementById('resetBtn');
+  const studentBody = document.getElementById('studentBody');
+  const emptyState = document.getElementById('emptyState');
+  const statTotal = document.getElementById('statTotal');
+  const statApplied = document.getElementById('statApplied');
+  const statPending = document.getElementById('statPending');
+  const deadlineDateEl = document.getElementById('deadlineDate');
+  const countdownEl = document.getElementById('countdown');
+
+  // ================= Deadline =================
+  const DEADLINE = new Date('2026-10-30T23:59:59');
+
+  function updateDeadline() {
+    const now = new Date();
+    const diff = DEADLINE - now;
+    const days = Math.ceil(diff / (1000 * 60 * 60 * 24));
+
+    deadlineDateEl.textContent = DEADLINE.toLocaleDateString('en-IN', {
+      year: 'numeric', month: 'long', day: 'numeric'
+    });
+
+    if (days > 0) {
+      countdownEl.textContent = `${days} day${days === 1 ? '' : 's'} left`;
+      countdownEl.style.color = days <= 7 ? '#ef4444' : '#facc15';
+    } else if (days === 0) {
+      countdownEl.textContent = 'Last day!';
+      countdownEl.style.color = '#ef4444';
+    } else {
+      countdownEl.textContent = 'Deadline passed';
+      countdownEl.style.color = '#94a3b8';
+    }
+  }
+
+  // ================= Helpers =================
+  function escapeHtml(str) {
+    const div = document.createElement('div');
+    div.textContent = str || '';
+    return div.innerHTML;
+  }
+
+  // ================= Render =================
+  function render() {
+    const total = students.length;
+    const applied = students.filter(s => s.applied).length;
+    const pending = total - applied;
+
+    statTotal.textContent = total;
+    statApplied.textContent = applied;
+    statPending.textContent = pending;
+
+    if (total === 0) {
+      emptyState.style.display = 'block';
+      studentBody.innerHTML = '';
+      return;
+    }
+    emptyState.style.display = 'none';
+
+    studentBody.innerHTML = students.map((s, idx) => `
+      <tr>
+        <td>${escapeHtml(s.name)}</td>
+        <td>
+          <span class="status-badge ${s.applied ? 'applied' : 'not-applied'}"
+                data-index="${idx}" role="button" tabindex="0"
+                title="Click to toggle status">
+            ${s.applied ? 'Applied' : 'Not Applied'}
+          </span>
+        </td>
+        <td>
+          <input type="text"
+                 class="app-link-input"
+                 placeholder="Paste PDF link (Google Drive, etc.)"
+                 value="${escapeHtml(s.appLink || '')}"
+                 data-index="${idx}"
+                 style="width:100%; padding:6px 10px; font-size:0.82rem;
+                        border:1px solid #cbd5e1; border-radius:6px;" />
+        </td>
+        <td style="text-align:center;">
+          <button class="btn-delete" data-index="${idx}" title="Remove">✕</button>
+        </td>
+      </tr>
+    `).join('');
+  }
+
+  // ================= Firebase Listeners =================
+  onSnapshot(studentsRef, (snapshot) => {
+    students = [];
+    snapshot.forEach((d) => {
+      students.push({ id: d.id, ...d.data() });
+    });
+    // Sort by name for stable display
+    students.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+    render();
+  }, (err) => {
+    console.error('Firestore error:', err);
+    alert('Failed to load students. Check your Firebase config and rules.');
+  });
+
+  // ================= Actions =================
+  async function addStudent() {
+    const name = studentNameInput.value.trim();
+    if (!name) {
+      alert('Please enter a student name or SATS Id.');
+      return;
+    }
+    try {
+      await addDoc(studentsRef, { name, applied: false, appLink: '' });
+      studentNameInput.value = '';
+      studentNameInput.focus();
+    } catch (err) {
+      console.error(err);
+      alert('Failed to add student: ' + err.message);
+    }
+  }
+
+  async function toggleStatus(index) {
+    const s = students[index];
+    if (!s) return;
+    try {
+      await updateDoc(doc(db, 'nmms_students', s.id), { applied: !s.applied });
+    } catch (err) {
+      console.error(err);
+    }
+  }
+
+  async function updateAppLink(index, value) {
+    const s = students[index];
+    if (!s) return;
+    try {
+      await updateDoc(doc(db, 'nmms_students', s.id), { appLink: value });
+    } catch (err) {
+      console.error(err);
+    }
+  }
+
+  async function deleteStudent(index) {
+    const s = students[index];
+    if (!s) return;
+    if (!confirm(`Remove ${s.name}?`)) return;
+    try {
+      await deleteDoc(doc(db, 'nmms_students', s.id));
+    } catch (err) {
+      console.error(err);
+    }
+  }
+
+  async function resetAll() {
+    if (students.length === 0) return;
+    if (!confirm('Remove ALL students? This cannot be undone.')) return;
+    try {
+      const snapshot = await getDocs(studentsRef);
+      const batch = writeBatch(db);
+      snapshot.forEach((d) => batch.delete(d.ref));
+      await batch.commit();
+    } catch (err) {
+      console.error(err);
+      alert('Failed to clear: ' + err.message);
+    }
+  }
+
+  // ================= Events =================
+  addBtn.addEventListener('click', addStudent);
+  studentNameInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') addStudent();
+  });
+  resetBtn.addEventListener('click', resetAll);
+
+  // Click on badges / delete buttons
+  studentBody.addEventListener('click', (e) => {
+    const badge = e.target.closest('.status-badge');
+    const deleteBtn = e.target.closest('.btn-delete');
+
+    if (badge) {
+      toggleStatus(Number(badge.dataset.index));
+    } else if (deleteBtn) {
+      deleteStudent(Number(deleteBtn.dataset.index));
+    }
+  });
+
+  // Input for appLink — debounced save
+  let linkSaveTimers = {};
+  studentBody.addEventListener('input', (e) => {
+    const input = e.target.closest('.app-link-input');
+    if (!input) return;
+    const idx = Number(input.dataset.index);
+    const value = input.value.trim();
+
+    // Update local state immediately so re-renders don't lose it
+    if (students[idx]) students[idx].appLink = value;
+
+    clearTimeout(linkSaveTimers[idx]);
+    linkSaveTimers[idx] = setTimeout(() => {
+      updateAppLink(idx, value);
+    }, 600); // save 600ms after user stops typing
+  });
+
+  // Keyboard accessibility for badge
+  studentBody.addEventListener('keydown', (e) => {
+    const badge = e.target.closest('.status-badge');
+    if (badge && (e.key === 'Enter' || e.key === ' ')) {
+      e.preventDefault();
+      toggleStatus(Number(badge.dataset.index));
+    }
+  });
+
+  // ================= Init =================
+  updateDeadline();
+  setInterval(updateDeadline, 60 * 60 * 1000);
+</script>
+</body>
+</html>
